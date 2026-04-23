@@ -9,7 +9,9 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import dji.sdk.keyvalue.key.BatteryKey
 import dji.sdk.keyvalue.key.FlightControllerKey
+import dji.sdk.keyvalue.key.KeyTools
 import dji.sdk.keyvalue.key.ProductKey
+import dji.sdk.keyvalue.value.common.Velocity3D
 import dji.v5.common.error.IDJIError
 import dji.v5.common.register.DJISDKInitEvent
 import dji.v5.manager.KeyManager
@@ -118,13 +120,13 @@ class TelemetryService : Service() {
             pitch = v.pitch; roll = v.roll; heading = v.yaw
         }
 
-        km.listen(FlightControllerKey.KeyAircraftVelocity, this) { _, v ->
+        km.listen(KeyTools.createKey(FlightControllerKey.KeyAircraftVelocity), this) { _, v: Velocity3D? ->
             v ?: return@listen
             speedH = sqrt(v.x * v.x + v.y * v.y)
             speedV = -v.z  // DJI z is positive-down; flip to positive-up
         }
 
-        km.listen(BatteryKey.KeyChargeRemainingInPercent, this) { _, v ->
+        km.listen(KeyTools.createKey(BatteryKey.KeyChargeRemainingInPercent, 0), this) { _, v: Int? ->
             battery = v ?: 0
         }
     }
