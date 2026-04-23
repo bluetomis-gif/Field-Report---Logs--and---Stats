@@ -10,11 +10,11 @@ import androidx.core.app.NotificationCompat
 import dji.sdk.keyvalue.key.BatteryKey
 import dji.sdk.keyvalue.key.FlightControllerKey
 import dji.sdk.keyvalue.key.ProductKey
-import dji.v5.manager.SDKManager
-import dji.v5.manager.interfaces.SDKManagerCallback
 import dji.v5.common.error.IDJIError
 import dji.v5.common.register.DJISDKInitEvent
 import dji.v5.manager.KeyManager
+import dji.v5.manager.SDKManager
+import dji.v5.manager.interfaces.SDKManagerCallback
 import kotlinx.coroutines.*
 import org.eclipse.paho.client.mqttv3.*
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
@@ -34,17 +34,17 @@ class TelemetryService : Service() {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     // Live telemetry state — written by DJI key listeners
-    @Volatile private var lat: Double  = 0.0
-    @Volatile private var lon: Double  = 0.0
-    @Volatile private var alt: Double  = 0.0
+    @Volatile private var lat: Double   = 0.0
+    @Volatile private var lon: Double   = 0.0
+    @Volatile private var alt: Double   = 0.0
     @Volatile private var speedH: Double = 0.0
     @Volatile private var speedV: Double = 0.0
     @Volatile private var motorsOn: Boolean = false
-    @Volatile private var inSky: Boolean = false
-    @Volatile private var pitch: Double = 0.0
-    @Volatile private var roll: Double  = 0.0
+    @Volatile private var inSky: Boolean   = false
+    @Volatile private var pitch: Double  = 0.0
+    @Volatile private var roll: Double   = 0.0
     @Volatile private var heading: Double = 0.0
-    @Volatile private var battery: Int  = 0
+    @Volatile private var battery: Int   = 0
     @Volatile private var droneSn: String = "UNKNOWN"
 
     private var mqtt: MqttClient? = null
@@ -58,12 +58,11 @@ class TelemetryService : Service() {
         if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
         startForeground(NOTIF_ID, buildNotification("Initialising DJI SDK…"))
         initDJI()
-        return START_STICKY   // OS will restart service if killed
+        return START_STICKY
     }
 
     override fun onDestroy() {
         scope.cancel()
-        runCatching { KeyManager.getInstance()?.cancelListenByOwner(this) }
         runCatching { mqtt?.disconnect() }
         super.onDestroy()
     }
@@ -78,23 +77,24 @@ class TelemetryService : Service() {
                 scope.launch { connectMqtt() }
             }
             override fun onRegisterFailure(error: IDJIError?) {
-                updateNotif("SDK error: ${error?.description() ?: "unknown"} — retrying in 10 s")
+                updateNotif("SDK error: ${error?.description() ?: "unknown"} — retry in 10 s")
                 scope.launch {
                     delay(10_000)
                     initDJI()
                 }
             }
-            override fun onProductConnect(product: dji.v5.common.model.BaseProduct?) {
+            // MSDK v5: product callbacks use Int productId, not BaseProduct
+            override fun onProductConnect(productId: Int) {
                 droneSn = runCatching {
                     KeyManager.getInstance()
                         ?.getValue(ProductKey.KeySerialNumber) as? String ?: "UNKNOWN"
                 }.getOrDefault("UNKNOWN")
                 updateNotif("Aircraft connected: $droneSn")
             }
-            override fun onProductDisconnect(product: dji.v5.common.model.BaseProduct?) {
+            override fun onProductDisconnect(productId: Int) {
                 updateNotif("Aircraft disconnected — waiting…")
             }
-            override fun onProductChanged(product: dji.v5.common.model.BaseProduct?) {}
+            override fun onProductChanged(productId: Int) {}
             override fun onInitProcess(event: DJISDKInitEvent?, totalProcess: Int) {}
             override fun onDatabaseDownloadProgress(current: Long, total: Long) {}
         })
@@ -103,7 +103,7 @@ class TelemetryService : Service() {
     private fun subscribeKeys() {
         val km = KeyManager.getInstance() ?: return
 
-        // Location — primary publish trigger
+        // Location — triggers publish on every GPS update
         km.listen(FlightControllerKey.KeyAircraftLocation3D, this) { _, v ->
             v ?: return@listen
             lat = v.latitude; lon = v.longitude; alt = v.altitude
@@ -121,7 +121,7 @@ class TelemetryService : Service() {
         km.listen(FlightControllerKey.KeyAircraftVelocity, this) { _, v ->
             v ?: return@listen
             speedH = sqrt(v.x * v.x + v.y * v.y)
-            speedV = -v.z  // DJI z is positive-down; convert to positive-up
+            speedV = -v.z  // DJI z is positive-down; flip to positive-up
         }
 
         km.listen(BatteryKey.KeyChargeRemainingInPercent, this) { _, v ->
@@ -132,22 +132,22 @@ class TelemetryService : Service() {
     // ── MQTT ──────────────────────────────────────────────────────────────────
 
     private suspend fun connectMqtt() {
-        while (isActive) {
+        while (scope.isActive) {
             try {
                 val clientId = "fr-agent-${UUID.randomUUID()}"
                 val client = MqttClient(MQTT_BROKER, clientId, MemoryPersistence())
                 val opts = MqttConnectOptions().apply {
-                    isCleanSession     = true
-                    connectionTimeout  = 30
-                    keepAliveInterval  = 60
+                    isCleanSession      = true
+                    connectionTimeout   = 30
+                    keepAliveInterval   = 60
                     isAutomaticReconnect = true
                 }
                 withContext(Dispatchers.IO) { client.connect(opts) }
                 mqtt = client
-                updateNotif("MQTT connected — publishing to $MQTT_BROKER")
-                return  // connected; auto-reconnect handles future drops
+                updateNotif("MQTT connected — publishing telemetry")
+                return  // stay connected; auto-reconnect handles future drops
             } catch (e: Exception) {
-                updateNotif("MQTT error: ${e.message} — retry in 5 s")
+                updateNotif("MQTT: ${e.message} — retry in 5 s")
                 delay(5_000)
             }
         }
@@ -158,16 +158,16 @@ class TelemetryService : Service() {
         if (!client.isConnected) return
 
         val data = JSONObject().apply {
-            put("latitude",       lat)
-            put("longitude",      lon)
-            put("height",         alt)
+            put("latitude",         lat)
+            put("longitude",        lon)
+            put("height",           alt)
             put("horizontal_speed", speedH)
-            put("vertical_speed", speedV)
-            put("attitude_pitch", pitch)
-            put("attitude_roll",  roll)
-            put("attitude_head",  heading)
-            put("motors_on",      motorsOn)
-            put("in_the_sky",     inSky)
+            put("vertical_speed",   speedV)
+            put("attitude_pitch",   pitch)
+            put("attitude_roll",    roll)
+            put("attitude_head",    heading)
+            put("motors_on",        motorsOn)
+            put("in_the_sky",       inSky)
             put("battery", JSONObject().apply {
                 put("capacity_percent", battery)
             })
@@ -183,7 +183,7 @@ class TelemetryService : Service() {
             val topic = "$TOPIC_ROOT/$droneSn/osd"
             client.publish(topic, MqttMessage(envelope.toString().toByteArray()).apply { qos = 0 })
             frameCount++
-            if (frameCount % 10 == 0L) updateNotif("Live · $droneSn · $frameCount frames")
+            if (frameCount % 10L == 0L) updateNotif("Live · $droneSn · $frameCount frames")
         }
     }
 
@@ -211,7 +211,7 @@ class TelemetryService : Service() {
     }
 
     private fun updateNotif(text: String) {
-        val nm = getSystemService(NotificationManager::class.java)
-        nm.notify(NOTIF_ID, buildNotification(text))
+        getSystemService(NotificationManager::class.java)
+            .notify(NOTIF_ID, buildNotification(text))
     }
 }
