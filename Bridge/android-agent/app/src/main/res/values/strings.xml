@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FieldReport Agent</string>
+    <string name="channel_name">Telemetry Service</string>
+    <string name="channel_desc">Publishes drone telemetry to MQTT broker</string>
+</resources>

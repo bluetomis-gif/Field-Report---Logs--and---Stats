@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		D465129E2F9A5EE500C5E961 /* FieldReport: Logs and Stats.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "FieldReport: Logs and Stats.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D465129E2F9A5EE500C5E961 /* FieldReport Logs and Stats.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "FieldReport Logs and Stats.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		D46512A02F9A5EE500C5E961 /* FieldReport: Logs and Stats */ = {
+		D46512A02F9A5EE500C5E961 /* FieldReport Logs and Stats */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "FieldReport: Logs and Stats";
+			path = "FieldReport Logs and Stats";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		D46512952F9A5EE500C5E961 = {
 			isa = PBXGroup;
 			children = (
-				D46512A02F9A5EE500C5E961 /* FieldReport: Logs and Stats */,
+				D46512A02F9A5EE500C5E961 /* FieldReport Logs and Stats */,
 				D465129F2F9A5EE500C5E961 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -40,7 +40,7 @@
 		D465129F2F9A5EE500C5E961 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D465129E2F9A5EE500C5E961 /* FieldReport: Logs and Stats.app */,
+				D465129E2F9A5EE500C5E961 /* FieldReport Logs and Stats.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D465129D2F9A5EE500C5E961 /* FieldReport: Logs and Stats */ = {
+		D465129D2F9A5EE500C5E961 /* FieldReport Logs and Stats */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D46512AB2F9A5EE600C5E961 /* Build configuration list for PBXNativeTarget "FieldReport: Logs and Stats" */;
+			buildConfigurationList = D46512AB2F9A5EE600C5E961 /* Build configuration list for PBXNativeTarget "FieldReport Logs and Stats" */;
 			buildPhases = (
 				D465129A2F9A5EE500C5E961 /* Sources */,
 				D465129B2F9A5EE500C5E961 /* Frameworks */,
@@ -61,13 +61,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				D46512A02F9A5EE500C5E961 /* FieldReport: Logs and Stats */,
+				D46512A02F9A5EE500C5E961 /* FieldReport Logs and Stats */,
 			);
-			name = "FieldReport: Logs and Stats";
+			name = "FieldReport Logs and Stats";
 			packageProductDependencies = (
 			);
-			productName = "FieldReport: Logs and Stats";
-			productReference = D465129E2F9A5EE500C5E961 /* FieldReport: Logs and Stats.app */;
+			productName = "FieldReport Logs and Stats";
+			productReference = D465129E2F9A5EE500C5E961 /* FieldReport Logs and Stats.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = D46512992F9A5EE500C5E961 /* Build configuration list for PBXProject "FieldReport: Logs and Stats" */;
+			buildConfigurationList = D46512992F9A5EE500C5E961 /* Build configuration list for PBXProject "FieldReport Logs and Stats" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D465129D2F9A5EE500C5E961 /* FieldReport: Logs and Stats */,
+				D465129D2F9A5EE500C5E961 /* FieldReport Logs and Stats */,
 			);
 		};
 /* End PBXProject section */
@@ -261,6 +261,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -293,6 +294,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -313,7 +315,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		D46512992F9A5EE500C5E961 /* Build configuration list for PBXProject "FieldReport: Logs and Stats" */ = {
+		D46512992F9A5EE500C5E961 /* Build configuration list for PBXProject "FieldReport Logs and Stats" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D46512A92F9A5EE600C5E961 /* Debug */,
@@ -322,7 +324,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		D46512AB2F9A5EE600C5E961 /* Build configuration list for PBXNativeTarget "FieldReport: Logs and Stats" */ = {
+		D46512AB2F9A5EE600C5E961 /* Build configuration list for PBXNativeTarget "FieldReport Logs and Stats" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				D46512AC2F9A5EE600C5E961 /* Debug */,

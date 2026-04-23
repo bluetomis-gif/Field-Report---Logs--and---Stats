@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<!--
+  FieldReport: DJI Pilot 2 H5 Handshake Page  v4.0 (Cloudflare Pages / static)
+  ============================================================================
+  Deploy this file to Cloudflare Pages (or any static host) with no build step.
+
+  The session code is read from the URL hash:
+    https://bridge.bluetomis.com#HAWK5
+
+  Architecture (serverless):
+    DJI Pilot 2 ──MQTT TCP TLS──▶ <cluster>.s1.eu.hivemq.cloud:8883
+    iPhone      ──MQTT WSS TLS──▶ <cluster>.s1.eu.hivemq.cloud:8884
+                                    Same broker, same topic:
+                                    thing/product/{SN}/osd
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>FieldReport Bridge v5</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #060810;
+      --card:   #0e1218;
+      --border: #1a2840;
+      --cyan:   #20ccff;
+      --green:  #22ee66;
+      --amber:  #ffcc00;
+      --red:    #ff4444;
+      --dim:    #5577aa;
+      --text:   #c8d8f0;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      padding: 14px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .title {
+      color: var(--cyan);
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .code-badge {
+      background: var(--cyan);
+      color: #000;
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: 4px;
+      padding: 4px 12px;
+      border-radius: 4px;
+    }
+
+    /* ── Status card ────────────────────────────────── */
+    .status-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--red);
+      box-shadow: 0 0 6px var(--red);
+    }
+    .indicator.ok     { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .indicator.warn   { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .indicator.pulse  { animation: blink 1s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .status-text { color: var(--text); flex: 1; }
+
+    /* ── Step list ──────────────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 6px; }
+    .step  {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .step-num {
+      background: var(--dim);
+      color: #000;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step.done .step-num { background: var(--green); }
+    .step.skip .step-num { background: var(--amber); }
+    .step-body { flex: 1; line-height: 1.6; }
+    .step-label { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ── Log ───────────────────────────────────────── */
+    .log {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      flex: 1;
+      overflow-y: auto;
+      max-height: 200px;
+      display: flex;
+      flex-direction: column-reverse;
+    }
+    .log-row  { padding: 1px 0; border-bottom: 1px solid #ffffff06; line-height: 1.5; }
+    .ok   { color: var(--green); }
+    .warn { color: var(--amber); }
+    .err  { color: var(--red);   }
+    .info { color: var(--dim);   }
+    .data { color: #88bbdd;      }
+    .ts   { color: #334455; margin-right: 6px; }
+
+    .counter { text-align: right; color: var(--dim); font-size: 10px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <span class="title">⬡ FieldReport Bridge</span>
+    <span class="code-badge" id="code-badge">——</span>
+  </div>
+
+  <div class="status-card" id="status-card">
+    <div class="indicator pulse" id="indicator"></div>
+    <span class="status-text" id="status-text">Initialising…</span>
+  </div>
+
+  <div class="steps" id="steps">
+    <div class="step" id="step-bridge">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-label">DJI Bridge</div>
+        <div>Detecting djiBridge API…</div>
+      </div>
+    </div>
+    <div class="step" id="step-mqtt">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-label">MQTT Connection</div>
+        <div>Connecting to HiveMQ broker (TLS:8883)…</div>
+      </div>
+    </div>
+    <div class="step" id="step-osd">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-label">OSD Telemetry</div>
+        <div>Waiting for drone arm…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+  <div class="counter">Frames: <span id="fc">0</span></div>
+
+  <script>
+    // ── Config ──────────────────────────────────────────────────────────────
+    const SESSION_CODE  = location.hash.slice(1).toUpperCase() || '';
+    const MQTT_HOST     = 'fieldreport-mqtt.fly.dev';
+    const MQTT_PORT     = 8883;
+    const MQTT_USERNAME = '';
+    const MQTT_PASSWORD = '';
+    const DJI_APP_ID      = '183784';
+    const DJI_APP_KEY     = '9976bf432acd10ad066badba0104f7b';
+    const DJI_APP_LICENSE = 'i71Vx6pypaI6Y7gOw2DyXcbHeY1BnBYcqIrFi6Cqm5A3jyIEYVGL5RaaoBaUiXc74AuquvRrtlFuAZ3i8oLPZvDjps+VWRU3ueGaw81Ir9n9q1GwZ6Oiz45R6CmtawuKCSFDN2JPijv2bir+vH2iVb+eaSyuwDNZDWoOyU+U9y8=';
+
+    let frameCount = 0;
+
+    // ── DOM helpers ──────────────────────────────────────────────────────────
+    function logEl(msg, cls = 'info') {
+      const ts  = new Date().toTimeString().slice(0, 8);
+      const row = document.createElement('div');
+      row.className = `log-row ${cls}`;
+      row.innerHTML = `<span class="ts">${ts}</span>${esc(msg)}`;
+      document.getElementById('log').appendChild(row);
+    }
+    function setStatus(msg, state = 'err') {
+      document.getElementById('status-text').textContent = msg;
+      const ind = document.getElementById('indicator');
+      ind.className = 'indicator ' + (state === 'ok' ? 'ok' : state === 'warn' ? 'warn pulse' : 'pulse');
+    }
+    function markStepDone(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.classList.add('done'); const b = el.querySelector('.step-body div:last-child'); if (b) b.textContent = msg; }
+    }
+    function markStepSkip(id, msg) {
+      const el = document.getElementById(id);
+      if (el) { el.classList.add('skip'); const b = el.querySelector('.step-body div:last-child'); if (b) b.textContent = msg; }
+    }
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // ── Safe call — always try/catch, parse JSON result ──────────────────────
+    function call(name, ...args) {
+      const b = window.djiBridge;
+      try {
+        let r = b[name](...args);
+        // DJI bridge returns JSON strings — parse them
+        if (typeof r === 'string' && (r.startsWith('{') || r.startsWith('['))) {
+          try { r = JSON.parse(r); } catch(_) {}
+        }
+        logEl(`${name}() → ${JSON.stringify(r)}`, 'ok');
+        return { ok: true, result: r };
+      } catch (e) {
+        logEl(`${name}() threw: ${e.message || e}`, 'err');
+        return { ok: false, error: e };
+      }
+    }
+
+    // Check if a DJI result indicates success
+    function isOk(res) {
+      if (!res.ok) return false;
+      const r = res.result;
+      if (r === 0 || r === undefined || r === null) return true;
+      if (r && typeof r === 'object' && r.code === 0) return true;
+      return false;
+    }
+
+    // ── Global callbacks (DJI Cloud API v2 calls these by name) ─────────────
+    // thingSetConnectCallback registers a FUNCTION NAME string.
+    // DJI SDK calls window[functionName](state) when MQTT state changes.
+    window.onThingCallback = function(state) {
+      logEl(`onThingCallback(${state})`, 'ok');
+      const s = String(state).toLowerCase();
+      if (s === 'connected' || s === '1' || s === 'true') {
+        setStatus(`LIVE — session ${SESSION_CODE}`, 'ok');
+        markStepDone('step-mqtt', 'MQTT connected ✓');
+        logEl('MQTT connected ✓ — OSD will flow when drone publishes', 'ok');
+      } else if (s === 'disconnected' || s === '0' || s === 'false') {
+        setStatus('MQTT disconnected — SDK will retry…', 'warn');
+        logEl('MQTT disconnected', 'warn');
+      } else {
+        logEl(`MQTT state: ${state}`, 'info');
+      }
+    };
+
+    // wsSetConnectCallback uses the same pattern for WebSocket state
+    window.onWsCallback = function(state) {
+      logEl(`onWsCallback(${state})`, 'info');
+    };
+
+    // ── Main ────────────────────────────────────────────────────────────────
+    async function init() {
+      try { await _init(); } catch (e) {
+        logEl(`FATAL: ${e.message || e}`, 'err');
+        logEl(`Stack: ${e.stack || ''}`, 'err');
+        setStatus(`Crashed: ${e.message}`);
+      }
+    }
+
+    async function _init() {
+      if (!SESSION_CODE) {
+        document.getElementById('code-badge').textContent = 'NO CODE';
+        setStatus('Add #CODE to URL');
+        return;
+      }
+      document.getElementById('code-badge').textContent = SESSION_CODE;
+      document.title = `FieldReport — ${SESSION_CODE}`;
+      logEl(`Session: ${SESSION_CODE}  MQTT: ${MQTT_HOST}:${MQTT_PORT}`);
+
+      // ── Detect djiBridge ──────────────────────────────────────────────────
+      if (typeof window.djiBridge === 'undefined') {
+        logEl('No djiBridge — mock mode', 'warn');
+        installMock();
+        return;
+      }
+      logEl('djiBridge detected ✓', 'ok');
+      markStepDone('step-bridge', 'djiBridge ready');
+
+      // ── 0. Enumerate djiBridge methods (debug) ─────────────────────────────
+      logEl('── BRIDGE API ──', 'info');
+      const methods = [];
+      try {
+        for (const key of Object.getOwnPropertyNames(window.djiBridge)) {
+          if (typeof window.djiBridge[key] === 'function') methods.push(key);
+        }
+        // Also try prototype
+        const proto = Object.getPrototypeOf(window.djiBridge);
+        if (proto) {
+          for (const key of Object.getOwnPropertyNames(proto)) {
+            if (typeof proto[key] === 'function' && key !== 'constructor') methods.push(key);
+          }
+        }
+      } catch(e) {}
+      if (methods.length > 0) {
+        logEl(`Bridge methods (${methods.length}): ${methods.sort().join(', ')}`, 'data');
+      } else {
+        logEl('Could not enumerate bridge methods', 'warn');
+      }
+
+      // ── 1. License (appId, appKey, appLicense) ────────────────────────────
+      logEl('── LICENSE ──', 'info');
+      const lic = call('platformVerifyLicense', DJI_APP_ID, DJI_APP_KEY, DJI_APP_LICENSE);
+      if (isOk(lic)) {
+        logEl(`License accepted (data=${lic.result?.data}) ✓`, 'ok');
+        markStepDone('step-bridge', 'License accepted ✓');
+      } else {
+        logEl('License call failed — continuing anyway', 'warn');
+        markStepSkip('step-bridge', 'License issue');
+      }
+
+      // ── 2. Workspace (needs a UUID) + platform info ───────────────────────
+      logEl('── WORKSPACE ──', 'info');
+      const wsId = 'e58e336e-f906-4e47-b127-' + SESSION_CODE.padEnd(12, '0').slice(0, 12);
+      call('platformSetWorkspaceId', wsId);
+      call('platformSetInformation', 'FieldReport', 'FieldReport', 'DJI Telemetry Logger');
+
+      // ── 3. Register callback BEFORE loading component ──────────────────
+      logEl('── REGISTER CALLBACKS ──', 'info');
+      call('thingSetConnectCallback', 'onThingCallback');
+
+      // ── 4. Load MQTT component (triggers connection) ──────────────────────
+      logEl('── LOAD THING COMPONENT ──', 'info');
+      const clientId = `fr_${SESSION_CODE}_${Date.now()}`;
+      const cfg = JSON.stringify({
+        host:      MQTT_HOST,
+        port:      MQTT_PORT,
+        clientId:  clientId,
+        username:  MQTT_USERNAME,
+        password:  MQTT_PASSWORD,
+        enableTLS: true
+      });
+      logEl(`clientId: ${clientId}`);
+
+      const loadRes = call('platformLoadComponent', 'thing', cfg);
+      if (isOk(loadRes)) {
+        logEl('Thing component loaded ✓', 'ok');
+      } else {
+        logEl('Failed to load thing component', 'err');
+      }
+
+      // ── 4b. Configure native cloud backend (for persistence) ──────────────
+      logEl('── NATIVE API CONFIG ──', 'info');
+      // Probe current API host and token
+      call('apiGetHost');
+      call('apiGetToken');
+      // Set our server as the API host and provide a token so the native
+      // cloud module recognizes we're authenticated
+      const apiToken = `fr_${SESSION_CODE}_${Date.now()}`;
+      call('apiSetToken', apiToken);
+      logEl(`Set apiToken: ${apiToken}`, 'info');
+
+      logEl('Component loaded — connection should be initiating…', 'info');
+
+      // ── 5. Probe device info ────────────────────────────────────────────────
+      logEl('── DEVICE INFO ──', 'info');
+      call('platformGetAircraftSN');
+      call('platformGetRemoteControllerSN');
+      call('platformGetProductEnum');
+      call('platformGetRemoteControllerEnum');
+      call('platformGetVersion');
+
+      // ── 6. Check state ────────────────────────────────────────────────────
+      logEl('── STATUS ──', 'info');
+      call('platformIsComponentLoaded', 'thing');
+      call('thingGetConnectState');
+      call('thingGetConfigs');
+      // Also check ws module state
+      call('wsGetConnectState');
+      call('wsGetConfigs');
+
+      setStatus(`Connecting to ${MQTT_HOST}:${MQTT_PORT}…`, 'warn');
+      markStepDone('step-mqtt', 'MQTT loaded — awaiting connection callback');
+      logEl('Waiting for onThingCallback…', 'info');
+
+      // Poll connection state every 3 seconds for debugging
+      let polls = 0;
+      const poller = setInterval(() => {
+        polls++;
+        const state = call('thingGetConnectState');
+        // Accept various connected formats: true, {data:true}, "connected", 1
+        const r = state.result;
+        const connected = r === true || r === 1 || r === 'connected' ||
+                          (r && r.data === true) || (r && r.data === 1) ||
+                          (r && r.data === 'connected');
+        if (state.ok && connected) {
+          clearInterval(poller);
+          logEl('MQTT connected (polled) ✓', 'ok');
+          setStatus(`LIVE — session ${SESSION_CODE}`, 'ok');
+          markStepDone('step-mqtt', 'MQTT connected ✓');
+        }
+        if (polls >= 60) clearInterval(poller); // stop after 3 min
+      }, 3000);
+    }
+
+    // ── Mock ────────────────────────────────────────────────────────────────
+    function installMock() {
+      window.djiBridge = {
+        platformVerifyLicense: () => 0,
+        platformSetWorkspaceId: () => 0,
+        platformSetInformation: () => 0,
+        thingSetConnectCallback: (fn) => { setTimeout(() => window[fn]?.('connected'), 800); return 0; },
+        thingConnect: () => 0,
+        thingGetConnectState: () => 'connected',
+        thingGetConfigs: () => '{}',
+        wsSetConnectCallback: () => 0,
+      };
+      setTimeout(() => {
+        let n = 0;
+        setInterval(() => {
+          const topic = 'thing/product/MOCK_SN/osd';
+          const payload = JSON.stringify({timestamp: Date.now(), data: {latitude: 0, longitude: 0}});
+          // Simulate receiving OSD — in real DJI SDK, messages come via a different channel
+          n++;
+          if (n === 1) logEl('Mock OSD frames flowing…', 'data');
+          frameCount = n;
+          document.getElementById('fc').textContent = n;
+          if (n === 1) markStepDone('step-osd', 'OSD streaming ✓');
+        }, 1000);
+      }, 1500);
+      init();
+    }
+
+    // ── Keep-Alive: prevent WebView from being killed ──────────────────────
+    // These tricks tell Android that the page is "active" so DJI Pilot 2
+    // is less likely to destroy the WebView when navigating to camera view.
+
+    // 1. Screen Wake Lock — prevents screen dimming
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {
+            logEl('Wake lock released — re-acquiring…', 'warn');
+            setTimeout(requestWakeLock, 1000);
+          });
+          logEl('Screen wake lock acquired ✓', 'ok');
+        }
+      } catch (e) {
+        logEl(`Wake lock: ${e.message}`, 'warn');
+      }
+    }
+
+    // 2. Silent audio loop — keeps audio context active (Android keeps
+    //    WebViews alive if they're playing audio)
+    let audioCtx = null;
+    function startSilentAudio() {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Create a silent oscillator at near-zero volume
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.001; // essentially silent
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        logEl('Silent audio keep-alive started ✓', 'ok');
+      } catch (e) {
+        logEl(`Silent audio: ${e.message}`, 'warn');
+      }
+    }
+
+    // 3. Re-acquire wake lock when page becomes visible again
+    document.addEventListener('visibilitychange', () => {
+      logEl(`Visibility: ${document.visibilityState}`, 'info');
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+        // Resume audio context if suspended
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      }
+    });
+
+    // 4. Periodic keep-alive ping — touch the DOM to prove we're active
+    setInterval(() => {
+      document.getElementById('fc').textContent = frameCount;
+    }, 5000);
+
+    window.addEventListener('load', () => {
+      requestWakeLock();
+      startSilentAudio();
+      init();
+    });
+  </script>
+</body>
+</html>
